@@ -3,7 +3,7 @@ INSTALLED_APPS = [
     "admin_interface",
     "colorfield",  # именно так
     "django.contrib.admin",
-    "models",
+    "TG_STORE"
     # ... остальные приложения ...
 ]
 X_FRAME_OPTIONS = "SAMEORIGIN"
