@@ -5,12 +5,13 @@ import sys
 import logging
 import asyncio
 from pathlib import Path
-
+from asgiref.sync import sync_to_async
 import django
 from django.core.management.base import BaseCommand
 
 # aiogram 3.x
 from aiogram import Bot, Dispatcher, types
+from aiogram import F
 from aiogram.filters.command import Command as AiogramCommand
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
@@ -51,6 +52,11 @@ class BotManager:
         keyboard = create_reply_keyboard()
         await message.answer("Привет! Выберите действие:", reply_markup=keyboard)
 
+    async def handle_catalog(self, message: types.Message):
+    # Здесь логика вывода каталога
+        settings = await sync_to_async(TelegramSettings.load)()
+        await message.answer(f"Привет, {settings.about}! 👋")
+
 def create_reply_keyboard():
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
@@ -88,6 +94,10 @@ class Command(BaseCommand):
             bot_manager.dp.message.register(
                 bot_manager.start_command,
                 AiogramCommand(commands=["start"])
+            )
+            bot_manager.dp.message.register(
+                bot_manager.handle_catalog,
+                F.text == "Каталог"  # Обработчик команды "Каталог"
             )
             #  - любые другие сообщения
             bot_manager.dp.message.register(bot_manager.handle_any_message)
