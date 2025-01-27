@@ -14,7 +14,24 @@ class TelegramSettings(models.Model):
         blank=True,
         null=True
     )
-    
+    about = models.TextField(
+        "О магазине", 
+        max_length=500,
+        blank=True,
+        null=True
+    )
+    ship_pay = models.TextField(
+        "Доставка и оплата", 
+        max_length=500,
+        blank=True,
+        null=True
+    )
+    bonus = models.TextField(
+        "Бонусная система", 
+        max_length=500,
+        blank=True,
+        null=True
+    )
     class Meta:
         db_table = "tgshop_telegramsettings"
         verbose_name = "Настройка Telegram"

@@ -13,7 +13,7 @@ from django.core.management.base import BaseCommand
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters.command import Command as AiogramCommand
 from aiogram.fsm.storage.memory import MemoryStorage
-
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 # 1. Добавляем в sys.path (если нужно)
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.append(str(BASE_DIR))
@@ -48,7 +48,19 @@ class BotManager:
         await message.answer(f"Привет, {message.from_user.first_name}! 👋")
 
     async def handle_any_message(self, message: types.Message):
-        await message.answer("Не понял вас, я просто бот 🤖")
+        keyboard = create_reply_keyboard()
+        await message.answer("Привет! Выберите действие:", reply_markup=keyboard)
+
+def create_reply_keyboard():
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Каталог"), KeyboardButton(text="Корзина")],  # Одна кнопка в строке
+            [KeyboardButton(text="Оплата и доставка"), KeyboardButton(text="Бонусная система")],  # Две кнопки в одной строке
+            [KeyboardButton(text="Связь с оператором"), KeyboardButton(text="О магазине")], # Снова две кнопки в одной строке
+        ],
+        resize_keyboard=True  # Уменьшить размер клавиатуры
+    )
+    return keyboard
 
 
 class Command(BaseCommand):
@@ -88,6 +100,7 @@ class Command(BaseCommand):
 
         except Exception as e:
             logger.error(f"🔥 Ошибка: {e}")
+
 
 
 if __name__ == "__main__":
