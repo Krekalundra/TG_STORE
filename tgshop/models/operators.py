@@ -14,7 +14,7 @@ class Operator(models.Model):
     )
     
     class Meta:
-        db_table = "tgshop_operators"
+        db_table = "tgshop_operator"
         verbose_name = "Оператор"
         verbose_name_plural = "Операторы"
 
