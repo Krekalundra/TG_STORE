@@ -26,3 +26,9 @@ class Operator(models.Model):
         if self.is_active:
             Operator.objects.exclude(pk=self.pk).update(is_active=False)
         super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        """ Загружает активного оператора или создает нового(пока что) """
+        obj, created = cls.objects.get_or_create(is_active=True, defaults={"username": "default_operator"})
+        return obj
