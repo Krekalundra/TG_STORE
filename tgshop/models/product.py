@@ -21,8 +21,6 @@ class Product(models.Model):
         "Название товара", 
         max_length=100
     )
-  
-   
     dis_product = models.TextField(
         blank=True, 
         verbose_name="Описание"
