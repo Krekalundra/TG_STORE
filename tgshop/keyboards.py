@@ -4,6 +4,7 @@ from tgshop.models.categories import Category
 from tgshop.models.product import Product
 from django.shortcuts import get_object_or_404
 #Запрашиваем категории товаров
+#Для коммита
 
 
 # Свежая клавиатура меня
