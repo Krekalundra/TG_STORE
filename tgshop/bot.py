@@ -9,12 +9,12 @@ from django.core.management.base import BaseCommand
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
-# Добавляем путь к проекту
-BASE_DIR = Path(__file__).resolve().parent
+# Настраиваем пути
+BASE_DIR = Path(__file__).resolve().parent.parent  # Поднимаемся на уровень выше
 sys.path.append(str(BASE_DIR))
 
 # Настраиваем Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tgshop.config.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')  # Изменён путь к настройкам
 
 try:
     django.setup()
@@ -23,7 +23,7 @@ except Exception as e:
 
 # Импортируем обработчики и настройки
 from tgshop.models.settings import TelegramSettings
-from tgshop.handlers import register_handlers  # Функция для подключения обработчиков
+from tgshop.handlers import register_handlers
 
 # Настройка логов
 logging.basicConfig(level=logging.INFO)

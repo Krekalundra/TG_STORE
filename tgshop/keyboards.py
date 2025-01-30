@@ -80,3 +80,11 @@ def create_keyboard(category_id=None):
         ])
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def create_product_keyboard(product_id: int) -> InlineKeyboardMarkup:
+    """Создаёт клавиатуру для карточки товара"""
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🛒 Добавить в корзину", callback_data=f"add_to_cart_{product_id}")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data=f"back_to_category_{product_id}")]
+    ])
+    return keyboard
