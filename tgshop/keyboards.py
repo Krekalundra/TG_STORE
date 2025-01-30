@@ -35,28 +35,41 @@ catalog_keyboard = InlineKeyboardMarkup(
     )
 
 
-def create_keyboard(category_id):
-    # Создаём список кнопок
-    buttons = []
-    current_category = get_object_or_404(Category, id=category_id)
-    categories = Category.objects.filter(parent_id=category_id).order_by('order')
-    products = Product.objects.filter(category_id=category_id).order_by('id')
-
-
-    for cat in categories:
-        buttons.append([InlineKeyboardButton(text=f" {cat.name}", callback_data=f"category_{cat.id}")])
-
-    # 🔹 Затем добавляем кнопки для товаров
-    for product in products:
-        buttons.append([InlineKeyboardButton(text=f"{product.name} - {product.price} ₽", callback_data=f"product_{product.id}")])
+def create_keyboard(category_id=None):
+    keyboard = InlineKeyboardMarkup(row_width=2)
     
-    if current_category.parent_id:
-    # Если у текущей категории есть родитель — возвращаемся к нему
-        buttons.append([InlineKeyboardButton(text="🔙 Назад", callback_data=f"category_{current_category.parent_id}")])
-    else:
-    # Если у категории нет родителя — возвращаем в главное меню
-        buttons.append([InlineKeyboardButton(text="🔙 Назад", callback_data=f"catalog_menu")])   
-
-    # Создаём клавиатуру
-    temp_keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-    return temp_keyboard
+    # Получаем подкатегории
+    subcategories = Category.objects.filter(parent_id=category_id)
+    products = Product.objects.filter(category_id=category_id)
+    
+    # Добавляем кнопки подкатегорий
+    for subcategory in subcategories:
+        keyboard.add(InlineKeyboardButton(
+            text=subcategory.name,
+            callback_data=f"category_{subcategory.id}"
+        ))
+    
+    # Добавляем кнопки товаров
+    for product in products:
+        keyboard.add(InlineKeyboardButton(
+            text=f"{product.name} - {product.price}₽",
+            callback_data=f"product_{product.id}"
+        ))
+    
+    # Добавляем кнопку "Назад"
+    if category_id is not None:
+        # Получаем текущую категорию
+        current_category = Category.objects.get(id=category_id)
+        # Если есть родительская категория, возвращаемся к ней
+        if current_category.parent_id:
+            back_id = current_category.parent_id
+        else:
+            # Если родительской категории нет, возвращаемся в корневое меню
+            back_id = "main"
+        
+        keyboard.add(InlineKeyboardButton(
+            text="⬅️ Назад",
+            callback_data=f"category_{back_id}"
+        ))
+    
+    return keyboard

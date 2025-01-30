@@ -7,6 +7,7 @@ from tgshop.models.settings import TelegramSettings
 from tgshop.models.operators import Operator
 from tgshop.models.product import Product
 from tgshop.keyboards import main_keyboard, catalog_keyboard, create_keyboard
+from tgshop.models.category import Category
 
 async def start_command(message: types.Message):
     """ Обработчик команды /start, отправляем основное меню """
@@ -57,14 +58,27 @@ async def product_callback_handler(callback: CallbackQuery):
     await callback.message.answer(f"Вы выбрали товар: {product.name}\nЦена: {product.price} ₽")
 
 async def catalog_callback_handler(callback: CallbackQuery):
-   #Обработчик инлайн-кнопок каталога
+    """Обработчик инлайн-кнопок каталога"""
+    
+    # Обработка возврата в главное меню
+    if callback.data == "category_main":
+        await callback.message.edit_text(
+            "Воспользуйтесь кнопками ниже для навигации по каталогу",
+            reply_markup=catalog_keyboard
+        )
+        return
 
     category_id = int(callback.data.split("_")[1])  # Преобразуем в int
-
+    
+    # Получаем текущую категорию для отображения её названия
+    current_category = await sync_to_async(Category.objects.get)(id=category_id)
+    
     temp_keyboard = await sync_to_async(create_keyboard)(category_id)
-
-    await callback.message.edit_text(f"Вы выбрали категорию {category_id}", reply_markup=temp_keyboard)
-
+    
+    await callback.message.edit_text(
+        f"Категория: {current_category.name}", 
+        reply_markup=temp_keyboard
+    )
 
 def register_handlers(dp: Dispatcher):
     """ Функция для регистрации обработчиков """
