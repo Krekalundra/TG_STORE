@@ -36,7 +36,8 @@ catalog_keyboard = InlineKeyboardMarkup(
 
 
 def create_keyboard(category_id=None):
-    keyboard = InlineKeyboardMarkup(row_width=2)
+    # Создаем пустой список для кнопок
+    buttons = []
     
     # Получаем подкатегории
     subcategories = Category.objects.filter(parent_id=category_id)
@@ -44,17 +45,21 @@ def create_keyboard(category_id=None):
     
     # Добавляем кнопки подкатегорий
     for subcategory in subcategories:
-        keyboard.add(InlineKeyboardButton(
-            text=subcategory.name,
-            callback_data=f"category_{subcategory.id}"
-        ))
+        buttons.append([
+            InlineKeyboardButton(
+                text=subcategory.name,
+                callback_data=f"category_{subcategory.id}"
+            )
+        ])
     
     # Добавляем кнопки товаров
     for product in products:
-        keyboard.add(InlineKeyboardButton(
-            text=f"{product.name} - {product.price}₽",
-            callback_data=f"product_{product.id}"
-        ))
+        buttons.append([
+            InlineKeyboardButton(
+                text=f"{product.name} - {product.price}₽",
+                callback_data=f"product_{product.id}"
+            )
+        ])
     
     # Добавляем кнопку "Назад"
     if category_id is not None:
@@ -67,9 +72,11 @@ def create_keyboard(category_id=None):
             # Если родительской категории нет, возвращаемся в корневое меню
             back_id = "main"
         
-        keyboard.add(InlineKeyboardButton(
-            text="⬅️ Назад",
-            callback_data=f"category_{back_id}"
-        ))
+        buttons.append([
+            InlineKeyboardButton(
+                text="⬅️ Назад",
+                callback_data=f"category_{back_id}"
+            )
+        ])
     
-    return keyboard
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
