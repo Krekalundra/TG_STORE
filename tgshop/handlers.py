@@ -1,6 +1,6 @@
 from asgiref.sync import sync_to_async
 from aiogram import Dispatcher, types
-from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, InlineKeyboardMarkup, InlineKeyboardButton, MenuButtonCommands, BotCommand, MenuButtonDefault
 from aiogram.filters.command import Command as AiogramCommand
 from aiogram import F
 from tgshop.models.settings import TelegramSettings
@@ -13,8 +13,22 @@ from django.conf import settings
 import logging
 
 async def start_command(message: types.Message):
-    """ Обработчик команды /start, отправляем основное меню """
-    await message.answer(f"Привет, {message.from_user.first_name}! 👋", reply_markup=main_keyboard)
+    """ Обработчик команды /start """
+    # Устанавливаем пустое меню (скрываем)
+    await message.bot.set_chat_menu_button(
+        chat_id=message.chat.id,
+        menu_button=MenuButtonDefault()
+    )
+    
+    # Очищаем список команд в меню
+    await message.bot.delete_my_commands()
+    
+    # Возвращаем reply-клавиатуру
+    await message.answer(
+        f"Привет, {message.from_user.first_name}! 👋\n"
+        f"Используйте кнопки ниже для навигации:", 
+        reply_markup=main_keyboard
+    )
 
 async def handle_catalog(message: types.Message):
     await message.answer(f"Воспользуйтесь кнопками ниже для навигации по каталогу",reply_markup=catalog_keyboard)
@@ -164,15 +178,46 @@ async def catalog_callback_handler(callback: CallbackQuery):
         reply_markup=temp_keyboard
     )
 
+# Добавляем обработчики цифровых команд
+async def command_1(message: types.Message):
+    await handle_catalog(message)
+
+async def command_2(message: types.Message):
+    await handle_cart(message)
+
+async def command_3(message: types.Message):
+    await handle_shippay(message)
+
+async def command_4(message: types.Message):
+    await handle_bonus(message)
+
+async def command_5(message: types.Message):
+    await handle_operator(message)
+
+async def command_6(message: types.Message):
+    await handle_about(message)
+
 def register_handlers(dp: Dispatcher):
     """ Функция для регистрации обработчиков """
     dp.message.register(start_command, AiogramCommand(commands=["start"]))
+    
+    # Регистрируем цифровые команды
+    dp.message.register(command_1, AiogramCommand(commands=["1"]))
+    dp.message.register(command_2, AiogramCommand(commands=["2"]))
+    dp.message.register(command_3, AiogramCommand(commands=["3"]))
+    dp.message.register(command_4, AiogramCommand(commands=["4"]))
+    dp.message.register(command_5, AiogramCommand(commands=["5"]))
+    dp.message.register(command_6, AiogramCommand(commands=["6"]))
+    
+    # Оставляем существующие обработчики текстовых команд
     dp.message.register(handle_catalog, F.text == "Каталог")
     dp.message.register(handle_cart, F.text == "Корзина")
     dp.message.register(handle_shippay, F.text == "Оплата и доставка")
     dp.message.register(handle_bonus, F.text == "Бонусная система")
     dp.message.register(handle_operator, F.text == "Связь с оператором")
     dp.message.register(handle_about, F.text == "О магазине")
+    
+    # Оставляем обработчики для callback-запросов
     dp.callback_query.register(catalog_callback_handler, F.data.startswith("category_"))
     dp.callback_query.register(product_callback_handler, F.data.startswith("product_"))
     dp.callback_query.register(handle_catalog_menu, F.data == "catalog_menu")
