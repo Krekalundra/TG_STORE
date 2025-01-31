@@ -11,9 +11,18 @@ from tgshop.models.categories import Category
 import os
 from django.conf import settings
 import logging
+from tgshop.services.customer import CustomerService
 
 async def start_command(message: types.Message):
     """ Обработчик команды /start """
+    # Создаем или получаем покупателя
+    customer_service = CustomerService()
+    customer, created = await sync_to_async(customer_service.get_or_create_customer)(
+        telegram_id=message.from_user.id,
+        first_name=message.from_user.first_name,
+        last_name=message.from_user.last_name
+    )
+    
     # Устанавливаем пустое меню (скрываем)
     await message.bot.set_chat_menu_button(
         chat_id=message.chat.id,
@@ -23,9 +32,12 @@ async def start_command(message: types.Message):
     # Очищаем список команд в меню
     await message.bot.delete_my_commands()
     
+    # Формируем приветственное сообщение
+    greeting = "С возвращением" if not created else "Добро пожаловать"
+    
     # Возвращаем reply-клавиатуру
     await message.answer(
-        f"Привет, {message.from_user.first_name}! 👋\n"
+        f"{greeting}, {message.from_user.first_name}! 👋\n"
         f"Используйте кнопки ниже для навигации:", 
         reply_markup=main_keyboard
     )
@@ -58,7 +70,19 @@ async def handle_about(message: types.Message):
     await message.answer(f"📦 {settings.about}")
 
 async def handle_any_message(message: types.Message):
-    """ Обработчик всех остальных сообщений, отправляем основное меню """
+    """ Обработчик всех остальных сообщений """
+    # Проверяем существование покупателя
+    customer_service = CustomerService()
+    customer = await sync_to_async(customer_service.get_customer)(message.from_user.id)
+    
+    if not customer:
+        # Если покупателя нет, создаем его
+        customer, _ = await sync_to_async(customer_service.get_or_create_customer)(
+            telegram_id=message.from_user.id,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name
+        )
+    
     await message.answer("Воспользуйтесь меню ниже:", reply_markup=main_keyboard)
 
 async def handle_catalog_menu(message: types.Message):
