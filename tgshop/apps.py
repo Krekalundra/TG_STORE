@@ -11,3 +11,7 @@ class TgshopConfig(AppConfig):
         import tgshop.models.product
         import tgshop.models.productImage
         import tgshop.models.settings
+        import tgshop.models.customer
+        import tgshop.models.order
+        import tgshop.models.cart
+        
