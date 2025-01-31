@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_extensions',
     'tgshop',
-    'tgshop.models.apps.ModelsConfig',
+    #'tgshop.models.apps.ModelsConfig',
 ]
 
 MIDDLEWARE = [

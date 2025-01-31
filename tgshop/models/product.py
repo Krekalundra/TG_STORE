@@ -1,6 +1,6 @@
 from django.core.validators import FileExtensionValidator, MaxValueValidator
 from django.db import models
-#from .categories import Category
+from tgshop.models.categories import Category
 from imagekit.models import ProcessedImageField
 from imagekit.processors import ResizeToFill
 class Product(models.Model):
@@ -9,7 +9,7 @@ class Product(models.Model):
         ('gram', 'За грамм'),
     ]
     category = models.ForeignKey(
-        'models.Category', 
+        Category,
         on_delete=models.CASCADE,
         verbose_name="Категория"
     )

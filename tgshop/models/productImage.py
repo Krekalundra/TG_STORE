@@ -3,6 +3,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from imagekit.models import ProcessedImageField
 from imagekit.processors import ResizeToFill
+from tgshop.models.product import Product  # правильный импорт
 
 
 def validate_single_cover(image_instance):
@@ -18,7 +19,7 @@ def validate_single_cover(image_instance):
 class ProductImage(models.Model):
     
     product = models.ForeignKey(
-        'models.Product', 
+        Product,  # прямая ссылка на модель
         on_delete=models.CASCADE, 
         related_name='images',
         verbose_name="Товар"
