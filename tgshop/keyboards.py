@@ -26,14 +26,13 @@ main_keyboard = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
- # Создаем inline-кнопки
+# Создаем inline-кнопки
 categories = Category.objects.filter(parent__isnull=True).order_by('order')
 catalog_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=cat.name, callback_data=f"category_{cat.id}")] for cat in categories
         ]
     )
-
 
 def create_keyboard(category_id=None):
     # Создаем пустой список для кнопок
@@ -86,5 +85,42 @@ def create_product_keyboard(product_id: int) -> InlineKeyboardMarkup:
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🛒 Добавить в корзину", callback_data=f"add_to_cart_{product_id}")],
         [InlineKeyboardButton(text="⬅️ Назад", callback_data=f"back_to_category_{product_id}")]
+    ])
+    return keyboard
+
+cancel_keyboard = ReplyKeyboardMarkup(
+    keyboard=[[KeyboardButton(text="Отмена")]],
+    resize_keyboard=True
+)
+
+def create_cart_keyboard(cart_items) -> InlineKeyboardMarkup:
+    """Создаёт клавиатуру для корзины"""
+    buttons = []
+    
+    for item in cart_items:
+        buttons.append([
+            InlineKeyboardButton(
+                text=f"{item.product.name} ({item.quantity} шт)",
+                callback_data=f"edit_cart_{item.id}"
+            )
+        ])
+    
+    if buttons:
+        buttons.append([
+            InlineKeyboardButton(text="🗑 Очистить корзину", callback_data="clear_cart")
+        ])
+    
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def create_cart_item_keyboard(item_id: int, quantity: int) -> InlineKeyboardMarkup:
+    """Создаёт клавиатуру для редактирования товара в корзине"""
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="➖", callback_data=f"cart_decrease_{item_id}"),
+            InlineKeyboardButton(text=f"{quantity}", callback_data="ignore"),
+            InlineKeyboardButton(text="➕", callback_data=f"cart_increase_{item_id}")
+        ],
+        [InlineKeyboardButton(text="❌ Удалить", callback_data=f"cart_remove_{item_id}")],
+        [InlineKeyboardButton(text="⬅️ Назад к корзине", callback_data="back_to_cart")]
     ])
     return keyboard
