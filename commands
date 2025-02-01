@@ -1,0 +1,3 @@
+mkdir -p tgshop/services
+touch tgshop/services/__init__.py
+touch tgshop/services/customer.py 

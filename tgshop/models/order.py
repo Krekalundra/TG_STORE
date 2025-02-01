@@ -27,6 +27,10 @@ class Order(models.Model):
         default='new',
         verbose_name="Статус"
     )
+    delivery_method = models.CharField(
+        max_length=100,
+        verbose_name="Способ доставки"
+    )
     total_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,

@@ -3,40 +3,39 @@ from tgshop.models.customer import Customer
 
 class CustomerService:
     @staticmethod
-    def get_or_create_customer(telegram_id: int, first_name: Optional[str] = None, last_name: Optional[str] = None) -> tuple[Customer, bool]:
+    def get_or_create_customer(telegram_id: int, **kwargs) -> Customer:
         """
-        Получить или создать покупателя по Telegram ID.
+        Получает существующего покупателя или создает нового по telegram_id
         
         Args:
-            telegram_id (int): ID пользователя в Telegram
-            first_name (str, optional): Имя пользователя
-            last_name (str, optional): Фамилия пользователя
+            telegram_id: ID пользователя в Telegram
+            **kwargs: поля для создания
             
         Returns:
-            tuple[Customer, bool]: (объект покупателя, создан ли новый)
+            Customer: объект покупателя
         """
-        try:
-            # Пытаемся найти существующего покупателя
-            customer = Customer.objects.get(telegram_id=telegram_id)
-            created = False
-            
-            # Обновляем имя и фамилию, если они изменились
-            if (first_name and customer.first_name != first_name) or \
-               (last_name and customer.last_name != last_name):
-                customer.first_name = first_name
-                customer.last_name = last_name
-                customer.save()
-                
-        except Customer.DoesNotExist:
-            # Создаем нового покупателя
-            customer = Customer.objects.create(
-                telegram_id=telegram_id,
-                first_name=first_name,
-                last_name=last_name
-            )
-            created = True
-            
+        customer, created = Customer.objects.get_or_create(
+            telegram_id=telegram_id,
+            defaults=kwargs
+        )
         return customer, created
+
+    @staticmethod
+    def update_customer(customer: Customer, **kwargs) -> Customer:
+        """
+        Обновляет данные покупателя
+        
+        Args:
+            customer: объект покупателя
+            **kwargs: поля для обновления
+            
+        Returns:
+            Customer: обновленный объект покупателя
+        """
+        for key, value in kwargs.items():
+            setattr(customer, key, value)
+        customer.save()
+        return customer
 
     @staticmethod
     def get_customer(telegram_id: int) -> Optional[Customer]:

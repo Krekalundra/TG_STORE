@@ -6,6 +6,16 @@ from django.shortcuts import get_object_or_404
 #Запрашиваем категории товаров
 #Для коммита
 
+__all__ = [
+    'main_keyboard',
+    'catalog_keyboard',
+    'create_keyboard',
+    'create_product_keyboard',
+    'cancel_keyboard',
+    'create_cart_keyboard',
+    'create_cart_item_keyboard',
+    'create_delivery_keyboard'  # Добавляем новую функцию
+]
 
 # Свежая клавиатура меня
 categories_new = Category.objects.filter(parent__isnull=True).order_by('order')
@@ -20,7 +30,7 @@ updated_keyboard = InlineKeyboardMarkup(
 main_keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="Каталог"), KeyboardButton(text="Корзина")],
-        [KeyboardButton(text="Оплата и доставка"), KeyboardButton(text="Бонусная система")],
+        [KeyboardButton(text="Оплата и доставка"), KeyboardButton(text="Личный кабинет")],
         [KeyboardButton(text="Связь с оператором"), KeyboardButton(text="О магазине")],
     ],
     resize_keyboard=True
@@ -93,24 +103,27 @@ cancel_keyboard = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
-def create_cart_keyboard(cart_items) -> InlineKeyboardMarkup:
-    """Создаёт клавиатуру для корзины"""
-    buttons = []
+def create_cart_keyboard(cart_items):
+    """Создание клавиатуры для корзины"""
+    keyboard = []
     
+    # Добавляем кнопки для каждого товара
     for item in cart_items:
-        buttons.append([
+        keyboard.append([
             InlineKeyboardButton(
-                text=f"{item.product.name} ({item.quantity} шт)",
+                text=f"{item.product.name} ({item.quantity} шт.)", 
                 callback_data=f"edit_cart_{item.id}"
             )
         ])
     
-    if buttons:
-        buttons.append([
-            InlineKeyboardButton(text="🗑 Очистить корзину", callback_data="clear_cart")
+    # Добавляем кнопки управления корзиной
+    if cart_items:  # Добавляем кнопки только если есть товары
+        keyboard.extend([
+            [InlineKeyboardButton(text="🗑 Очистить корзину", callback_data="clear_cart")],
+            [InlineKeyboardButton(text="✅ Оформить заказ", callback_data="checkout")]
         ])
     
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def create_cart_item_keyboard(item_id: int, quantity: int) -> InlineKeyboardMarkup:
     """Создаёт клавиатуру для редактирования товара в корзине"""
@@ -122,5 +135,14 @@ def create_cart_item_keyboard(item_id: int, quantity: int) -> InlineKeyboardMark
         ],
         [InlineKeyboardButton(text="❌ Удалить", callback_data=f"cart_remove_{item_id}")],
         [InlineKeyboardButton(text="⬅️ Назад к корзине", callback_data="back_to_cart")]
+    ])
+    return keyboard
+
+def create_delivery_keyboard() -> InlineKeyboardMarkup:
+    """Создаёт клавиатуру для выбора способа доставки"""
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🚚 Курьером", callback_data="delivery_courier")],
+        [InlineKeyboardButton(text="🏪 Самовывоз", callback_data="delivery_pickup")],
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_order")]
     ])
     return keyboard

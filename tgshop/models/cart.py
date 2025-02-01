@@ -1,6 +1,7 @@
 from django.db import models
 from tgshop.models.customer import Customer
 from tgshop.models.product import Product
+from asgiref.sync import sync_to_async
 
 class Cart(models.Model):
     customer = models.OneToOneField(
@@ -28,6 +29,11 @@ class Cart(models.Model):
 
     def get_total_amount(self):
         return sum(item.get_cost() for item in self.items.all())
+
+    async def get_total_amount_async(self):
+        """Асинхронный метод получения общей суммы корзины"""
+        items = await sync_to_async(list)(self.items.all())
+        return sum(item.get_cost() for item in items)
 
 class CartItem(models.Model):
     cart = models.ForeignKey(

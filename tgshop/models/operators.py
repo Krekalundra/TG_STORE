@@ -5,8 +5,12 @@ class Operator(models.Model):
     username = models.CharField(
         "Telegram username оператора", 
         max_length=100,
-        unique=True,
         help_text="Без @ (например: johnsmith)"
+    )
+    telegram_id = models.BigIntegerField(  # Добавляем поле для Telegram ID
+        "Telegram ID оператора",
+        unique=True,
+        help_text="ID пользователя в Telegram"
     )
     is_active = models.BooleanField(
         "Активен", 
@@ -29,6 +33,12 @@ class Operator(models.Model):
 
     @classmethod
     def load(cls):
-        """ Загружает активного оператора или создает нового(пока что) """
-        obj, created = cls.objects.get_or_create(is_active=True, defaults={"username": "default_operator"})
+        """ Загружает активного оператора или создает нового с фиксированным ID """
+        obj, created = cls.objects.get_or_create(
+            is_active=True,
+            defaults={
+                "username": "default_operator",
+                "telegram_id": 7670256977  # Фиксированный ID оператора
+            }
+        )
         return obj
