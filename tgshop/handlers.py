@@ -166,8 +166,13 @@ async def handle_bonus(message: types.Message):
 async def handle_operator(message: types.Message):
     """Обработчик кнопки 'Связь с оператором'"""
     await delete_catalog_if_exists(message)
-    operator = await sync_to_async(Operator.load)()
-    await message.answer(f"Наш чайный эксперт Вам поможет:\n @{operator.username}")
+    operator = await sync_to_async(lambda: Operator.objects.first())()
+    if operator and operator.username:
+        await message.answer(f"🫖 Наш чайный эксперт с удовольствием поможет вам в выборе!\n\n"
+                           f"👩‍💼 Напишите @{operator.username}")
+    else:
+        await message.answer("🫖 Наш чайный эксперт с удовольствием поможет вам в выборе!\n\n"
+                           "👩‍💼 Напишите @chaika_tea")
 
 async def handle_about(message: types.Message):
     """Обработчик кнопки 'О магазине'"""
@@ -202,7 +207,7 @@ async def handle_catalog_menu(message: types.Message):
     await message.answer(f"Воспользуйтесь кнопками ниже для навигации по каталогу",reply_markup=catalog_keyboard)
 
 async def product_callback_handler(callback: CallbackQuery):
-    """Обработчик нажатия на кнопку товара"""
+    """Обработчик выбора товара"""
     try:
         # Удаляем сообщение с каталогом
         await callback.message.delete()
@@ -222,7 +227,10 @@ async def product_callback_handler(callback: CallbackQuery):
         )
         
         # Создаём клавиатуру для товара
-        product_keyboard = create_product_keyboard(product_id)
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🛒 В корзину", callback_data=f"add_to_cart_{product_id}")],
+            [InlineKeyboardButton(text="↩️ Назад", callback_data=f"back_to_category_{product.category.id}")]
+        ])
         
         if images:
             try:
@@ -245,7 +253,7 @@ async def product_callback_handler(callback: CallbackQuery):
                 await callback.message.answer_photo(
                     photo=FSInputFile(cover_path),
                     caption=product_text,
-                    reply_markup=product_keyboard,
+                    reply_markup=keyboard,
                     parse_mode="Markdown"
                 )
                 
@@ -253,15 +261,16 @@ async def product_callback_handler(callback: CallbackQuery):
                 logging.error(f"Файл не найден: {e}")
                 await callback.message.answer(
                     text=f"{product_text}\n\n❌ Изображения недоступны",
-                    reply_markup=product_keyboard,
+                    reply_markup=keyboard,
                     parse_mode="Markdown"
                 )
         else:
             await callback.message.answer(
                 text=product_text,
-                reply_markup=product_keyboard,
+                reply_markup=keyboard,
                 parse_mode="Markdown"
             )
+
     except Exception as e:
         logging.error(f"Ошибка при показе товара: {e}")
         await callback.answer("Произошла ошибка при загрузке товара", show_alert=True)
@@ -710,27 +719,27 @@ async def checkout_callback(callback: CallbackQuery, state: FSMContext):
             await callback.answer("Корзина пуста!", show_alert=True)
             return
 
-        # Проверяем наличие сохраненного телефона
-        if customer.phone:
-            # Если телефон есть, предлагаем использовать его или ввести новый
+        # Проверяем наличие сохраненного ФИО
+        if customer.first_name:
+            # Если ФИО есть, предлагаем использовать его или ввести новое
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="✅ Использовать текущий", callback_data="use_current_phone")],
-                [InlineKeyboardButton(text="📝 Ввести новый", callback_data="enter_new_phone")],
+                [InlineKeyboardButton(text="✅ Использовать текущие", callback_data="use_current_name")],
+                [InlineKeyboardButton(text="📝 Ввести новые", callback_data="enter_new_name")],
                 [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_order")]
             ])
             await callback.message.edit_text(
-                f"📱 Использовать текущий номер телефона?\n"
-                f"Текущий номер: {customer.phone}",
+                f"👤 Использовать текущие ФИО?\n"
+                f"Текущие ФИО: {customer.first_name}",
                 reply_markup=keyboard
             )
         else:
-            # Если телефона нет, переходим к его вводу
+            # Если ФИО нет, переходим к его вводу
             cancel_keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_order")]
             ])
-            await state.set_state(OrderStates.waiting_for_phone)
+            await state.set_state(OrderStates.waiting_for_name)
             await callback.message.edit_text(
-                "📱 Введите ваш номер телефона в формате +7XXXXXXXXXX",
+                "👤 Введите ваши ФИО полностью",
                 reply_markup=cancel_keyboard
             )
         
@@ -760,12 +769,6 @@ async def handle_phone_input(message: types.Message, state: FSMContext):
         customer.phone = phone
         await sync_to_async(customer.save)()
 
-        # Находим и удаляем предыдущее сообщение с запросом телефона
-        async for msg in message.bot.get_chat_history(message.chat.id, limit=10):
-            if "Введите" in msg.text and "телефон" in msg.text:
-                await msg.delete()
-                break
-        
         # Переходим к выбору способа доставки
         await show_delivery_options(message, state)
         
@@ -942,20 +945,85 @@ async def handle_delivery_choice(callback: CallbackQuery, state: FSMContext):
 
 async def handle_address_input(message: types.Message, state: FSMContext):
     """Обработчик ввода адреса"""
-    address = message.text.strip()
-    if len(address) < 10:
-        await message.answer("❌ Адрес слишком короткий. Пожалуйста, введите полный адрес доставки")
-        return
+    try:
+        # Удаляем сообщение пользователя с введенным адресом
+        await message.delete()
+        
+        # Удаляем сообщение с запросом адреса
+        try:
+            # Получаем предыдущее сообщение (с запросом адреса)
+            prev_message = message.message_id - 1
+            await message.bot.delete_message(
+                chat_id=message.chat.id,
+                message_id=prev_message
+            )
+        except Exception as e:
+            logging.error(f"Ошибка при удалении сообщения с запросом адреса: {e}")
+        
+        address = message.text.strip()
+        if len(address) < 10:
+            error_msg = await message.answer("❌ Адрес слишком короткий. Пожалуйста, введите полный адрес доставки")
+            await asyncio.sleep(3)
+            await error_msg.delete()
+            return
 
-    # Сохраняем адрес в состоянии
-    await state.update_data(address=address)
-    
-    # Обновляем адрес и способ доставки в профиле пользователя
-    data = await state.get_data()
-    customer = await sync_to_async(CustomerService.get_customer)(message.from_user.id)
-    customer.address = address
-    customer.delivery_method = data['delivery_type']
-    await sync_to_async(customer.save)()
+        # Сохраняем адрес в состоянии
+        await state.update_data(address=address)
+        
+        # Обновляем адрес и способ доставки в профиле пользователя
+        data = await state.get_data()
+        customer = await sync_to_async(CustomerService.get_customer)(message.from_user.id)
+        customer.address = address
+        customer.delivery_method = data['delivery_type']
+        await sync_to_async(customer.save)()
+
+        # Получаем товары из корзины
+        cart_service = CartService()
+        cart = await cart_service.get_cart(customer)
+        cart_items = await sync_to_async(lambda: list(cart.items.select_related('product').all()))()
+        
+        # Формируем список товаров и считаем общую сумму
+        items_info = ""
+        total = 0
+        for item in cart_items:
+            item_total = item.quantity * item.product.price
+            total += item_total
+            items_info += (
+                f"• {item.product.name}\n"
+                f"  {item.quantity} x {item.product.price}₽ = {item_total}₽\n"
+            )
+
+        # Показываем подтверждение заказа
+        order_info = (
+            "📋 Подтвердите заказ:\n\n"
+            f"👤 ФИО: {data.get('full_name')}\n"
+            f"📱 Телефон: {data.get('phone')}\n"
+            f"📦 Доставка: {data['delivery_type']}\n"
+            f"📍 Адрес: {address}\n"
+            f"💭 Комментарий: пусто\n\n"
+            f"🛍 Состав заказа:\n"
+            f"{items_info}\n"
+            f"💰 Итого: {total}₽"
+        )
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💬 Комментарий", callback_data="comment")],
+            [InlineKeyboardButton(text="✅ Подтвердить", callback_data="confirm_order")],
+            [InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_order")]
+        ])
+        
+        # Отправляем сообщение с подтверждением заказа
+        confirm_message = await message.answer(order_info, reply_markup=keyboard)
+        
+        # Сохраняем ID сообщения с подтверждением заказа
+        await state.update_data(confirm_message_id=confirm_message.message_id)
+        
+        # Устанавливаем состояние ожидания комментария
+        await state.set_state(OrderStates.waiting_for_comment)
+        
+    except Exception as e:
+        logging.error(f"Ошибка при обработке адреса: {e}")
+        await message.answer("❌ Произошла ошибка. Попробуйте еще раз")
 
 async def handle_comment_input(message: types.Message, state: FSMContext):
     """Обработчик ввода комментария"""
@@ -1173,6 +1241,109 @@ async def comment_button_callback(callback: CallbackQuery, state: FSMContext):
         reply_markup=cancel_keyboard
     )
 
+async def handle_name_input(message: types.Message, state: FSMContext):
+    """Обработчик ввода ФИО"""
+    try:
+        # Удаляем сообщение пользователя с введенным ФИО
+        await message.delete()
+        
+        # Удаляем сообщение с запросом ФИО
+        try:
+            # Получаем предыдущее сообщение (с запросом ФИО)
+            prev_message = message.message_id - 1
+            await message.bot.delete_message(
+                chat_id=message.chat.id,
+                message_id=prev_message
+            )
+        except Exception as e:
+            logging.error(f"Ошибка при удалении сообщения с запросом ФИО: {e}")
+        
+        full_name = message.text.strip()
+        # Проверяем, что ФИО содержит хотя бы два слова
+        if len(full_name.split()) < 2:
+            error_msg = await message.answer("❌ Пожалуйста, введите полные ФИО")
+            await asyncio.sleep(3)
+            await error_msg.delete()
+            return
+
+        # Сохраняем ФИО в состоянии
+        await state.update_data(full_name=full_name)
+        
+        # Обновляем ФИО в профиле пользователя
+        customer = await sync_to_async(CustomerService.get_customer)(message.from_user.id)
+        customer.first_name = full_name
+        await sync_to_async(customer.save)()
+        
+        # Переходим к проверке телефона
+        await check_phone(message, state)
+        
+    except Exception as e:
+        logging.error(f"Ошибка при обработке ФИО: {e}")
+        error_msg = await message.answer("❌ Произошла ошибка. Попробуйте еще раз")
+        await asyncio.sleep(3)
+        await error_msg.delete()
+
+async def use_current_name_callback(callback: CallbackQuery, state: FSMContext):
+    """Обработчик использования текущего ФИО"""
+    try:
+        # Удаляем сообщение с вопросом об использовании текущего ФИО
+        await callback.message.delete()
+        
+        customer = await sync_to_async(CustomerService.get_customer)(callback.from_user.id)
+        await state.update_data(full_name=customer.first_name)
+        
+        # Переходим к проверке телефона
+        await check_phone(callback.message, state)
+    except Exception as e:
+        logging.error(f"Ошибка при использовании текущего ФИО: {e}")
+        await callback.answer("Произошла ошибка", show_alert=True)
+
+async def enter_new_name_callback(callback: CallbackQuery, state: FSMContext):
+    """Обработчик ввода нового ФИО"""
+    try:
+        cancel_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_order")]
+        ])
+        await state.set_state(OrderStates.waiting_for_name)
+        
+        # Удаляем предыдущее сообщение
+        await callback.message.delete()
+        
+        await callback.message.answer(
+            "👤 Введите ваши ФИО полностью",
+            reply_markup=cancel_keyboard
+        )
+    except Exception as e:
+        logging.error(f"Ошибка при запросе нового ФИО: {e}")
+        await callback.answer("Произошла ошибка", show_alert=True)
+
+async def check_phone(message: types.Message, state: FSMContext):
+    """Проверка телефона после ввода ФИО"""
+    customer = await sync_to_async(CustomerService.get_customer)(message.chat.id)
+    
+    if customer.phone:
+        # Если телефон есть, предлагаем использовать его или ввести новый
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Использовать текущий", callback_data="use_current_phone")],
+            [InlineKeyboardButton(text="📝 Ввести новый", callback_data="enter_new_phone")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_order")]
+        ])
+        await message.answer(
+            f"📱 Использовать текущий номер телефона?\n"
+            f"Текущий номер: {customer.phone}",
+            reply_markup=keyboard
+        )
+    else:
+        # Если телефона нет, переходим к его вводу
+        cancel_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_order")]
+        ])
+        await state.set_state(OrderStates.waiting_for_phone)
+        await message.answer(
+            "📱 Введите ваш номер телефона в формате +7XXXXXXXXXX",
+            reply_markup=cancel_keyboard
+        )
+
 def register_handlers(dp: Dispatcher):
     """ Функция для регистрации обработчиков """
     dp.message.register(start_command, AiogramCommand(commands=["start"]))
@@ -1217,6 +1388,7 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(use_current_phone_callback, F.data == "use_current_phone")
     dp.callback_query.register(enter_new_phone_callback, F.data == "enter_new_phone")
     dp.callback_query.register(use_current_delivery_callback, F.data == "use_current_delivery")
+    dp.callback_query.register(select_new_delivery_callback, F.data == "select_new_delivery")
     dp.message.register(handle_phone_input, OrderStates.waiting_for_phone)
     dp.callback_query.register(handle_delivery_choice, F.data.startswith("delivery_"))
     dp.message.register(handle_address_input, OrderStates.waiting_for_address)
@@ -1227,3 +1399,8 @@ def register_handlers(dp: Dispatcher):
     # Добавляем обработчик личного кабинета
     dp.message.register(handle_profile, F.text == "Личный кабинет")
     dp.callback_query.register(comment_button_callback, F.data == "comment")
+
+    # Оформление заказа - обработчики ФИО
+    dp.message.register(handle_name_input, OrderStates.waiting_for_name)
+    dp.callback_query.register(use_current_name_callback, F.data == "use_current_name")
+    dp.callback_query.register(enter_new_name_callback, F.data == "enter_new_name")

@@ -34,13 +34,8 @@ class TelegramSettingsAdmin(admin.ModelAdmin):
 
 @admin.register(Operator)
 class OperatorAdmin(admin.ModelAdmin):
-    list_display = ('username', 'is_active')
-    actions = None  # Скрыть действия массового редактирования
-
-    def has_add_permission(self, request):
-        # Разрешить добавление, но автоматически деактивировать предыдущего
-        return True
-
+    list_display = ['username']  # Убираем is_active из списка отображаемых полей
+    search_fields = ['username']
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):

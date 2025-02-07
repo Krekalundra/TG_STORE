@@ -3,7 +3,8 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from tgshop.models.product import Product  # правильный импорт
 from imagekit.models import ProcessedImageField
-from imagekit.processors import ResizeToFill
+from imagekit.processors import ResizeToFit
+from django.core.validators import FileExtensionValidator
 
 
 def validate_single_cover(instance):
@@ -30,10 +31,11 @@ class ProductImage(models.Model):
     )
     image = ProcessedImageField(
         upload_to='products/%Y/%m/%d/',
-        processors=[ResizeToFill(800, 600)],
+        processors=[ResizeToFit(600, 400)],
         format='JPEG',
-        options={'quality': 85, 'optimize': True},
-        verbose_name="Изображение"
+        options={'quality': 75, 'optimize': True, 'progressive': True},
+        verbose_name="Изображение",
+        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png'])]
     )
     is_cover = models.BooleanField(
         "Обложка", 

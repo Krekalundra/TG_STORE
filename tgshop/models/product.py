@@ -3,6 +3,17 @@ from django.db import models
 from tgshop.models.categories import Category
 from imagekit.models import ProcessedImageField
 from imagekit.processors import ResizeToFill
+from django.core.exceptions import ValidationError
+
+def validate_telegram_length(value):
+    """Валидатор для проверки длины описания"""
+    MAX_TELEGRAM_LENGTH = 1024  # Максимальная длина подписи к фото в Telegram
+    if len(value) > MAX_TELEGRAM_LENGTH:
+        raise ValidationError(
+            f'Описание слишком длинное. Максимальная длина - {MAX_TELEGRAM_LENGTH} символов. '
+            f'Текущая длина - {len(value)} символов.'
+        )
+
 class Product(models.Model):
     PRICE_TYPE_CHOICES = [
         ('piece', 'За штуку'),
@@ -23,7 +34,9 @@ class Product(models.Model):
     )
     dis_product = models.TextField(
         blank=True, 
-        verbose_name="Описание"
+        verbose_name="Описание",
+        validators=[validate_telegram_length],
+        help_text="Максимальная длина - 1024 символа (ограничение Telegram)"
     )
     price = models.DecimalField(
         "Цена", 
